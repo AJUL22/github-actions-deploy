@@ -2,10 +2,10 @@ package com.example;
 
 public class App {
     public static void main(String[] args) {
-        System.out.println(getMessage());
+        System.out.println("Hello, World!");
     }
 
-    public static String getMessage() {
-        return "✅ Hello from Maven + GitHub Actions!";
+    public int add(int a, int b) {
+        return a + b;
     }
 }
