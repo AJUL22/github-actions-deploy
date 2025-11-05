@@ -38,11 +38,6 @@
             </plugin>
         </plugins>
     </build>
- <mirror>
-  <id>mirror-all</id>
-  <mirrorOf>*</mirrorOf>
-  <url>https://maven.pkg.github.com/AJULM/AJUL22</url>    <!-- WRONG if used for central -->
-</mirror>
 
  <distributionManagement>
         <repository>
