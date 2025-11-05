@@ -80,23 +80,27 @@ jobs:
           name: demo-app-target
           path: target/
 
-      - name: Replace placeholders in pom.xml with actual owner/repo
+      - name: (Optional) Replace placeholders in pom.xml (if you use EXAMPLE_USER/EXAMPLE_REPO)
         run: |
           OWNER="${{ github.repository_owner }}"
           REPO="${{ github.event.repository.name }}"
-          echo "Replacing EXAMPLE_USER -> $OWNER and EXAMPLE_REPO -> $REPO in pom.xml"
-          cp pom.xml pom.xml.bak
-          sed -i "s|EXAMPLE_USER|${OWNER}|g" pom.xml
-          sed -i "s|EXAMPLE_REPO|${REPO}|g" pom.xml
-          echo "distributionManagement block now:"
-          sed -n '/<distributionManagement>/,/<\/distributionManagement>/p' pom.xml || true
+          if grep -q "EXAMPLE_USER" pom.xml || grep -q "EXAMPLE_REPO" pom.xml; then
+            echo "Replacing EXAMPLE_USER/EXAMPLE_REPO with $OWNER/$REPO"
+            cp pom.xml pom.xml.bak
+            sed -i "s|EXAMPLE_USER|${OWNER}|g" pom.xml
+            sed -i "s|EXAMPLE_REPO|${REPO}|g" pom.xml
+            sed -n '/<distributionManagement>/,/<\/distributionManagement>/p' pom.xml || true
+          else
+            echo "pom.xml already contains final repository URL; skipping replacement"
+          fi
 
       - name: Configure Maven settings for GitHub Packages
         env:
-          PKG_TOKEN: ${{ secrets.PASSWORD }}
+          PKG_TOKEN: ${{ secrets.PASSWORD }}   # must be set in repo secrets
         run: |
-          mkdir -p $HOME/.m2
-          cat > $HOME/.m2/settings.xml <<'EOF'
+          mkdir -p "$HOME/.m2"
+          # Create settings.xml with actual username and token expanded by the shell.
+          cat > "$HOME/.m2/settings.xml" <<EOF
           <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
                     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                     xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
@@ -104,14 +108,14 @@ jobs:
             <servers>
               <server>
                 <id>github</id>
-                <username>${{ github.actor }}</username>
-                <password>${env.PKG_TOKEN}</password>
+                <username>$GITHUB_ACTOR</username>
+                <password>$PKG_TOKEN</password>
               </server>
             </servers>
           </settings>
           EOF
-          # sanity: show file path but not secrets
-          ls -l $HOME/.m2/settings.xml
+          # show settings path only (do not print file contents)
+          ls -l "$HOME/.m2/settings.xml"
 
       - name: Publish to GitHub Packages
-        run: mvn -B deploy --settings $HOME/.m2/settings.xml
+        run: mvn -B -DskipTests=true deploy --settings "$HOME/.m2/settings.xml"
