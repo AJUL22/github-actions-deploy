@@ -6,7 +6,6 @@ on:
   pull_request:
     branches: [ main ]
 
-# needed so GITHUB_TOKEN can publish packages
 permissions:
   contents: read
   packages: write
@@ -59,7 +58,6 @@ jobs:
     name: Deploy to GitHub Packages
     runs-on: ubuntu-latest
     needs: [build, test]
-    # Deploy only on direct push to main (not on PRs)
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
@@ -73,13 +71,29 @@ jobs:
           java-version: 17
           cache: maven
 
-      - name: (Optional) Download built artifact
+      - name: Download built artifact
         uses: actions/download-artifact@v4
         with:
           name: demo-app-target
           path: target/
 
+      # ✅ Generate settings.xml dynamically
+      - name: Configure Maven settings for GitHub Packages
+        run: |
+          cat <<EOF > $HOME/.m2/settings.xml
+          <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                    xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
+                                        http://maven.apache.org/xsd/settings-1.0.0.xsd">
+            <servers>
+              <server>
+                <id>github</id>
+                <username>${{ github.USERNAME }}</username>
+                <password>${{ secrets.PASSWORD }}</password>
+              </server>
+            </servers>
+          </settings>
+          EOF
+
       - name: Publish to GitHub Packages
-        env:
-          GITHUB_TOKEN: ${{ secrets.PASSWORD }}
-        run: mvn -B deploy -s settings.xml
+        run: mvn -B deploy --settings $HOME/.m2/settings.xml
