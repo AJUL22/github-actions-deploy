@@ -1,5 +1,3 @@
-mkdir -p .github/workflows
-cat > .github/workflows/maven-ci-cd.yml <<'EOF'
 name: Maven CI/CD — Build, Test, Deploy to GitHub Packages
 
 on:
