@@ -26,7 +26,7 @@ jobs:
           cache: maven
 
       - name: Build (package) and run tests
-        run: mvn -B clean test package -DskipTests=false
+        run: mvn -B clean test package
 
   deploy:
     name: Deploy to GitHub Packages
@@ -44,12 +44,12 @@ jobs:
           java-version: 17
           cache: maven
 
-      - name: Configure Maven settings for publishing (use GITHUB_TOKEN by default)
+      - name: Configure Maven settings for publishing (use token from secrets)
         env:
-          PKG_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PKG_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # change to ${{ secrets.MAVEN_GITHUB_TOKEN }} if you created a PAT secret
         run: |
           mkdir -p "$HOME/.m2"
-          cat > "$HOME/.m2/settings.xml" <<EOF
+          cat > "$HOME/.m2/settings.xml" <<'EOF'
 <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
           xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
@@ -57,26 +57,16 @@ jobs:
   <servers>
     <server>
       <id>github</id>
-      <username>${{ USERNAME }}</username>
-      <password>$PASSWORD</password>
+      <username>${GITHUB_ACTOR}</username>
+      <password>${PKG_TOKEN}</password>
     </server>
   </servers>
 </settings>
 EOF
           ls -l "$HOME/.m2/settings.xml"
 
-      - name: Ensure distributionManagement URL matches repository
-        run: |
-          # Replace placeholder EXAMPLE_USER/EXAMPLE_REPO in pom.xml if present
-          OWNER="${{ AJUL22 }}"
-          REPO="${{ github-actions-deploy }}"
-          if grep -q "EXAMPLE_USER" pom.xml || grep -q "EXAMPLE_REPO" pom.xml; then
-            sed -i "s|AJULM|${OWNER}|g" pom.xml
-            sed -i "s|AJUL22|${REPO}|g" pom.xml
-            echo "Replaced placeholders in pom.xml with ${OWNER}/${REPO}"
-          else
-            echo "pom.xml already configured"
-          fi
+      - name: Show distributionManagement in pom.xml (debug)
+        run: sed -n '/<distributionManagement>/,/<\/distributionManagement>/p' pom.xml || true
 
       - name: Publish to GitHub Packages
         run: mvn -B -DskipTests=true deploy --settings "$HOME/.m2/settings.xml"
