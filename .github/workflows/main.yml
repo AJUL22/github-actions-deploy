@@ -15,7 +15,7 @@ jobs:
     name: Build & Test
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout repo
         uses: actions/checkout@v4
 
       - name: Setup JDK 17
@@ -28,7 +28,7 @@ jobs:
       - name: Build, test and package
         run: mvn -B clean test package
 
-      - name: List generated artifacts
+      - name: List artifacts
         run: ls -la target/
 
   deploy:
@@ -37,7 +37,7 @@ jobs:
     needs: build-and-test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
-      - name: Checkout repository
+      - name: Checkout repo
         uses: actions/checkout@v4
 
       - name: Setup JDK 17
@@ -47,9 +47,23 @@ jobs:
           java-version: 17
           cache: maven
 
-      - name: Publish to GitHub Packages
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-versi
+      - name: Configure Maven for GitHub Packages
+        env:
+          GITHUB_TOKEN: ${{ PASSWORD}}
+        run: |
+          mkdir -p "$HOME/.m2"
+          cat > "$HOME/.m2/settings.xml" <<EOF
+<settings>
+  <servers>
+    <server>
+      <id>github</id>
+      <username>${USERNAME}</username>
+      <password>${PASSWORD}</password>
+    </server>
+  </servers>
+</settings>
+EOF
+
+      - name: Deploy artifact
+        run: mvn -B -DskipTests=true deploy --settings "$HOME/.m2/settings.xml"
 
