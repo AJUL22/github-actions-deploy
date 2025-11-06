@@ -11,8 +11,8 @@ permissions:
   packages: write
 
 jobs:
-  build:
-    name: Build (skip tests)
+  build-and-test:
+    name: Build & Test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -25,48 +25,18 @@ jobs:
           java-version: 17
           cache: maven
 
-      - name: Build (package) - skip tests
-        run: mvn -B -DskipTests=true clean package
-
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: demo-app-target
-          path: target/*.jar
-
-  test:
-    name: Test
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 17
-          cache: maven
-
-      - name: Run unit tests
-        run: mvn -B -DskipTests=false test
+      - name: Build (package) and run tests
+        run: mvn -B clean test package -DskipTests=false
 
   deploy:
     name: Deploy to GitHub Packages
     runs-on: ubuntu-latest
-    needs: [build, test]
+    needs: build-and-test
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Show repo info (debug)
-        run: |
-          echo "GITHUB_REPOSITORY: $GITHUB_REPOSITORY"
-          echo "GITHUB_REPOSITORY_OWNER: $GITHUB_REPOSITORY_OWNER"
-          echo "GITHUB_ACTOR: $GITHUB_ACTOR"
-
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
@@ -74,48 +44,39 @@ jobs:
           java-version: 17
           cache: maven
 
-      - name: Download built artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: demo-app-target
-          path: target/
-
-      - name: (Optional) Replace placeholders in pom.xml (if you use EXAMPLE_USER/EXAMPLE_REPO)
-        run: |
-          OWNER="${{ github.repository_owner }}"
-          REPO="${{ github.event.repository.name }}"
-          if grep -q "EXAMPLE_USER" pom.xml || grep -q "EXAMPLE_REPO" pom.xml; then
-            echo "Replacing EXAMPLE_USER/EXAMPLE_REPO with $OWNER/$REPO"
-            cp pom.xml pom.xml.bak
-            sed -i "s|EXAMPLE_USER|${OWNER}|g" pom.xml
-            sed -i "s|EXAMPLE_REPO|${REPO}|g" pom.xml
-            sed -n '/<distributionManagement>/,/<\/distributionManagement>/p' pom.xml || true
-          else
-            echo "pom.xml already contains final repository URL; skipping replacement"
-          fi
-
-      - name: Configure Maven settings for GitHub Packages
+      - name: Configure Maven settings for publishing (use GITHUB_TOKEN by default)
         env:
-          PKG_TOKEN: ${{ secrets.PASSWORD }}   # must be set in repo secrets
+          PKG_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p "$HOME/.m2"
-          # Create settings.xml with actual username and token expanded by the shell.
           cat > "$HOME/.m2/settings.xml" <<EOF
-          <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
-                    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-                    xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
-                                        http://maven.apache.org/xsd/settings-1.0.0.xsd">
-            <servers>
-              <server>
-                <id>github</id>
-                <username>$GITHUB_ACTOR</username>
-                <password>$PKG_TOKEN</password>
-              </server>
-            </servers>
-          </settings>
-          EOF
-          # show settings path only (do not print file contents)
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
+                              http://maven.apache.org/xsd/settings-1.0.0.xsd">
+  <servers>
+    <server>
+      <id>github</id>
+      <username>${{ USERNAME }}</username>
+      <password>$PASSWORD</password>
+    </server>
+  </servers>
+</settings>
+EOF
           ls -l "$HOME/.m2/settings.xml"
+
+      - name: Ensure distributionManagement URL matches repository
+        run: |
+          # Replace placeholder EXAMPLE_USER/EXAMPLE_REPO in pom.xml if present
+          OWNER="${{ AJUL22 }}"
+          REPO="${{ github-actions-deploy }}"
+          if grep -q "EXAMPLE_USER" pom.xml || grep -q "EXAMPLE_REPO" pom.xml; then
+            sed -i "s|AJULM|${OWNER}|g" pom.xml
+            sed -i "s|AJUL22|${REPO}|g" pom.xml
+            echo "Replaced placeholders in pom.xml with ${OWNER}/${REPO}"
+          else
+            echo "pom.xml already configured"
+          fi
 
       - name: Publish to GitHub Packages
         run: mvn -B -DskipTests=true deploy --settings "$HOME/.m2/settings.xml"
