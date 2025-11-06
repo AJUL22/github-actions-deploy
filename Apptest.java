@@ -6,8 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class AppTest {
 
     @Test
-    public void testAdd() {
-        App app = new App();
-        assertEquals(5, app.add(2, 3), "2 + 3 should equal 5");
+    void testGetMessage() {
+        String expected = "✅ Hello from Maven + GitHub Actions!";
+        String actual = App.getMessage();
+        assertEquals(expected, actual, "Message should match expected text");
     }
 }
