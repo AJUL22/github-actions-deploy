@@ -26,6 +26,21 @@
 
   <build>
     <plugins>
+      <!-- Make the jar executable -->
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-jar-plugin</artifactId>
+        <version>3.3.0</version>
+        <configuration>
+          <archive>
+            <manifest>
+              <mainClass>com.example.App</mainClass>
+            </manifest>
+          </archive>
+        </configuration>
+      </plugin>
+
+      <!-- Run unit tests -->
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-surefire-plugin</artifactId>
@@ -39,6 +54,7 @@
     </plugins>
   </build>
 
+  <!-- Replace EXAMPLE_USER/EXAMPLE_REPO with your owner/repo (or let workflow change it) -->
   <distributionManagement>
     <repository>
       <id>github</id>
