@@ -5,6 +5,7 @@ public class App {
         System.out.println("Hello, World!");
     }
 
+    // Simple method covered by unit test
     public int add(int a, int b) {
         return a + b;
     }
